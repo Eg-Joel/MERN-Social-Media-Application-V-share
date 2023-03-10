@@ -1,6 +1,6 @@
 const mongoose = require("mongoose")
 const bcrypt = require("bcryptjs");
-const verificationTokenSchema = new mongoose.Schema({
+const VerificationTokenSchema = new mongoose.Schema({
     user:{
         type:mongoose.Schema.Types.ObjectId,
         ref:"User",
@@ -11,13 +11,14 @@ const verificationTokenSchema = new mongoose.Schema({
         required:true
         
     },
-    createAt:{
-        type:String,
-        required:true
+    createdAt:{
+        type:Date,
+        required:true,
+        default:Date.now()
         
     }
 })
-verificationTokenSchema.pre("save",async(next)=>{
+VerificationTokenSchema.pre("save",async function(next){
     const salt = await bcrypt.genSalt(10);
     if(this.isModified("token")){
               const hash = await bcrypt.hash(this.token , salt);
@@ -25,4 +26,4 @@ verificationTokenSchema.pre("save",async(next)=>{
     }
     next();
 })
-module.exports = mongoose.model("verificationToken",verificationTokenSchema)
+module.exports = mongoose.model("VerificationToken",VerificationTokenSchema)

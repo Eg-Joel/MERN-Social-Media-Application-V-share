@@ -1,6 +1,6 @@
 const router = require("express").Router()
 const { body, validationResult } = require('express-validator')
-const { createUser,login, following, followerPost, updateProfile, deleteUser, userDetailPost, userToFollow } = require('../controllers/userController')
+const { createUser,login, following, followerPost, updateProfile, deleteUser, userDetailPost, userToFollow, verifyEmail } = require('../controllers/userController')
 const { verifyToken } = require("../middlewares/verifyToken")
 
 
@@ -9,6 +9,9 @@ router.post("/create/user",
        body('password').isLength({ min: 6 }), 
        body('username').isLength({ min: 3 }),
        body('phonenumber').isLength({ min: 10 }), createUser)
+
+//verfiy email
+router.post("/verfy/email",verifyEmail)
 
 //login
 router.post("/login",

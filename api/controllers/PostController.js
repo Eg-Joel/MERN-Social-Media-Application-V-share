@@ -3,7 +3,7 @@ const User = require("../models/User");
 
 
 
-
+ 
 //create post
 exports.createPost = async (req,res) => {
     try {

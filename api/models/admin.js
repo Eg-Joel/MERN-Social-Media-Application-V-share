@@ -17,7 +17,7 @@ const AdminSchema = new mongoose.Schema(
       default: true,
     },
   },
-  
+   
 );
 
 module.exports = mongoose.model("Admin", AdminSchema);

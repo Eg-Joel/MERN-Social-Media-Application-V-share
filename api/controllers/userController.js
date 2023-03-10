@@ -6,17 +6,19 @@ const jwt = require('jsonwebtoken');
 const { post } = require("../router/user");
 const jwtSEC = "#2idfbfb$%TTtrr123##"
 const Post = require("../models/Post");
-
+const VerificationToken=require("../models/verificationToken")
+const { generateOTP } = require("../router/otp/mail");
+const nodemailer = require('nodemailer')
 
 
 
 
 exports.createUser =async (req,res)=>{
     const error = validationResult(req)
-    if(!error.isEmpty()){
-        return res.status(400).json('some error occured')
-    }
-    try {
+    // if(!error.isEmpty()){
+    //     return res.status(400).json('some error occured')
+    // }
+    // try {
      
     let user = await User.findOne({email:req.body.email});
     if(user){
@@ -26,7 +28,7 @@ exports.createUser =async (req,res)=>{
    
     const salt = await bcrypt.genSalt(10);
     const hashPas = await bcrypt.hash(password, salt)
-
+    console.log(process.env.USER);
     user = await User.create({
         username:req.body.username,
         email:req.body.email,
@@ -38,12 +40,44 @@ exports.createUser =async (req,res)=>{
         id:user._id,
         username:user.username
     },jwtSEC)
+    const OTP = generateOTP()
+    const verificationToken =await VerificationToken.create({
+        user:user._id,
+        token:OTP
+    })
+    verificationToken.save()
     await user.save();
-    res.status(200).json({user,accessToken})
 
-} catch (error) {
-        return res.status(400).json('internal error occured')
+      var transport = nodemailer.createTransport({
+        host: "sandbox.smtp.mailtrap.io",
+        port: 2525,
+        auth: {
+          user: "22e9587dc9ffc2",
+          pass: "fa3bc9c11a00ea"
+        }
+      });
+      transport.sendMail({
+        from:"V-Share@gmail.com",
+        to:user.email,
+        subject:"Verify your email using OTP",
+        html:`<h1>Your OTP code  ${OTP}</h1>`
+      })
+    
+    res.status(200).json({Status:"pending",msg:"Please check your email",user:user._id})
+
+// } catch (error) {
+//         return res.status(400).json('internal error occured')
+// }
 }
+
+exports.verifyEmail = async (req,res)=>{
+    const {user, OTP} = req.body
+    const mainUser = await User.findById(user)
+    if(!mainUser)return res.status(400).json("User not found")
+    if(mainUser.verfied === true){
+        return res.status(400).json("user already verfied")
+        
+    }
 }
 
 exports.login = async(req,res)=>{
