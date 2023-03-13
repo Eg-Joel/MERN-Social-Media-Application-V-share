@@ -7,9 +7,10 @@ const { post } = require("../router/user");
 const jwtSEC = "#2idfbfb$%TTtrr123##"
 const Post = require("../models/Post");
 const VerificationToken=require("../models/verificationToken")
+const ResetToken = require("../models/ResetToken")
 const { generateOTP } = require("../router/otp/mail");
 const nodemailer = require('nodemailer')
-
+const crypto = require("crypto")
 
 
 
@@ -52,8 +53,8 @@ exports.createUser =async (req,res)=>{
         host: "sandbox.smtp.mailtrap.io",
         port: 2525,
         auth: {
-          user: "22e9587dc9ffc2",
-          pass: "fa3bc9c11a00ea"
+          user: process.env.USER,
+          pass: process.env.PASS
         }
       });
       transport.sendMail({
@@ -78,6 +79,36 @@ exports.verifyEmail = async (req,res)=>{
         return res.status(400).json("user already verfied")
         
     }
+    const token = await VerificationToken.findOne({user:mainUser._id})
+    if(!token){
+        return res.status(400).json("sorry token not found")
+    }
+    const isMatch =await bcrypt.compareSync(OTP, token.token)
+    if(!isMatch){return res.status(400).json("Token is not vaild")}
+    mainUser.verfied = true
+    await VerificationToken.findByIdAndDelete(token._id)
+    await mainUser.save()
+    const accessToken = jwt.sign({
+        id:mainUser._id,
+        username:mainUser.username
+        
+    } , jwtSEC)
+    const {password ,...other}= mainUser._doc
+    var transport = nodemailer.createTransport({
+        host: "sandbox.smtp.mailtrap.io",
+        port: 2525,
+        auth: {
+            user: process.env.USER,
+            pass: process.env.PASS
+        }
+      });
+      transport.sendMail({
+        from:"V-Share@gmail.com",
+        to:mainUser.email,
+        subject:"Successfuly Verified your email ",
+        html:`Now you can login `
+      })
+      return res.status(200).json({other,accessToken})
 }
 
 exports.login = async(req,res)=>{
@@ -107,6 +138,89 @@ exports.login = async(req,res)=>{
         res.status(500).json('internal error occured')
 }
 }
+
+exports.forgotPassword = async(req,res)=>{
+ 
+    const {email} = req.body;
+    const user = await User.findOne({email:email});
+    if(!user){
+        return res.status(400).json("User not found");
+    }
+  
+    const token = await ResetToken.findOne({user:user._id});
+    if(token){
+        return res.status(400).json("After one hour you can request for another token");
+    }
+
+    const RandomTxt = crypto.randomBytes(20).toString('hex');
+    const resetToken = new ResetToken({
+        user:user._id,
+        token:RandomTxt
+    });
+    
+    await resetToken.save();
+    var transport = nodemailer.createTransport({
+        host: "sandbox.smtp.mailtrap.io",
+        port: 2525,
+        auth: {
+            user: process.env.USER,
+            pass: process.env.PASS
+        }
+      });
+      transport.sendMail({
+        from:"V-Share@gmail.com",
+        to:user.email,
+        subject:"reset token ",
+        html:`http://localhost:3000/reset/password?token=${RandomTxt}&_id=${user._id}`
+      })
+
+      return res.status(200).json("Check your email to reset password")
+}
+
+exports.resetPassword = async(req,res)=>{
+
+    const {token , _id} = req.query;
+    if(!token || !_id){
+        return res.status(400).json("Invalid req");
+    }
+    const user = await User.findOne({_id:_id});
+    if(!user){
+        return res.status(400).json("user not found")
+    }
+    const resetToken = await ResetToken.findOne({user:user._id});
+    if(!resetToken){
+        return res.status(400).json("Reset token is not found")
+    }
+    console.log(resetToken.token)
+    const isMatch = await bcrypt.compareSync(token , resetToken.token);
+    if(!isMatch){
+        return res.status(400).json("Token is not valid");
+    }
+
+    const {password} = req.body;
+    // const salt = await bcrypt.getSalt(10);
+    const secpass = await bcrypt.hash(password , 10);
+    user.password = secpass;
+    await user.save();
+    const transport = nodemailer.createTransport({
+        host: "smtp.mailtrap.io",
+        port: 2525,
+        auth: {
+          user: process.env.USER,
+          pass: process.env.PASS
+        }
+      });
+      transport.sendMail({
+        from:"sociaMedia@gmail.com",
+        to:user.email,
+        subject:"Your password reset successfully",
+        html:`Now you can login with new password`
+      })
+
+      return res.status(200).json("Email has been send")
+
+}
+
 exports.following = async(req,res)=>{
     if(req.params.id !== req.user.id){
        

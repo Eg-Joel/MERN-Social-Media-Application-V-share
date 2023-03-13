@@ -26,6 +26,11 @@ const PostSchema = new mongoose.Schema({
         type:Array,
        
     },
+    reports:{
+        type: Array,
+        default: [],
+      },
+    
     comments:[
         {
             user:{
@@ -42,10 +47,18 @@ const PostSchema = new mongoose.Schema({
             },
             profile:{
                 type:String,
-            }
+            },
+            createdAt:{
+                type: Date,
+                default: Date.now,
+                required:true
+              },
+              
         }
 
     ]
-})
+},
+{timestamps: true}
+)
 
 module.exports = mongoose.model("Post",PostSchema)
